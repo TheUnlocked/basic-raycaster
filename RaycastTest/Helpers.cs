@@ -48,7 +48,7 @@ namespace RaycastTest
         {
             // This function is pure magic.
 
-            float cosi = MathF.Abs(MathHelper.Clamp(Vector3.Dot(incident, normal), -1, 1));
+            float cosi = MathHelper.Clamp(Vector3.Dot(incident, normal), -1, 1);
             float etai;
             float etat;
             if (cosi > 0)

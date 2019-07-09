@@ -5,6 +5,8 @@ using System.Text;
 
 namespace RaycastTest
 {
+    delegate void Affector(ref IntersectionData col);
+
     class Material
     {
         public Color Color { get; set; } = Color.White;
@@ -15,8 +17,18 @@ namespace RaycastTest
         public float DiffuseMultiplier { get; set; } = 0.8f;
         public float SpecularMultiplier { get; set; } = 0.2f;
         /**
-         * <summary>Transparent materials should be made non-solid to allow transmitted light.</summary>
+         * <summary>
+         * Transparent materials should be made non-solid to allow transmitted light. <br />
+         * Do not change after initialization.
+         * </summary>
          */
         public bool Solid { get; set; } = true;
+        /**
+         * <summary>
+         * Allows a material to change collision properties. <br />
+         * Do not change after initialization.
+         * </summary>
+         */
+        public Affector Affector { get; set; } = (ref IntersectionData _) => { };
     }
 }

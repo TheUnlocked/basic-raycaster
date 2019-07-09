@@ -1,11 +1,12 @@
 ﻿// Can significantly improve performance on multicore systems.
 // However, this flag will likely max out your CPU and make it run much hotter.
-//#define MULTICORE_RENDER
+#define MULTICORE_RENDER
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using XNAPlane = Microsoft.Xna.Framework.Plane;
 
@@ -24,7 +25,7 @@ namespace RaycastTest
         float fov = MathF.PI / 2;
 
         // I recommend setting this lower for realtime and higher for single renders.
-        const float RENDER_SCALE = 1 / 2f;
+        const float RENDER_SCALE = 1 / 3f;
 
         // This is a magic number which reduces artifacts.
         const float bias = 0.0001f;
@@ -32,8 +33,8 @@ namespace RaycastTest
         static readonly Color BACKGROUND_COLOR = Color.CornflowerBlue;
 
         // Must be at least 2 for reflections and at least 3 for passing through a transparent medium.
-        // This ideal value will depend on how many reflective/transmissive objects are in your scene.
-        const int MAX_DEPTH = 6;
+        // The ideal value will depend on how many reflective/transmissive objects are in your scene.
+        const int MAX_DEPTH = 8;
 
         // Render the just the first frame or attempt to render the scene in realtime.
         const bool SINGLE_RENDER = false;
@@ -56,21 +57,38 @@ namespace RaycastTest
             Material mirror = new Material() {
                 Color = Color.White,
                 Metallicity = 1f,
-                //Transparency = 0f,
-                //DiffuseMultiplier = 0f,
-                //SpecularMultiplier = 0f,
-                //RefractiveIndex = 1.5f
             };
+
+            Material water = new Material()
+            {
+                Transparency = 1f,
+                IndexOfRefraction = 1.33f,
+                DiffuseMultiplier = 0,
+                SpecularMultiplier = 0,
+                Metallicity = 0,
+                Solid = false
+            };
+
+            Random r = new Random();
 
             raycastObjects = new IRaycastObject[] {
                 new Sphere(new Vector3(2, -0.5f, 10), 3, new Material { Color = Color.Magenta, SpecularExponent = 30, SpecularMultiplier = 0.3f }),
                 new Sphere(new Vector3(-1f, 0.5f, 7), 1.5f, new Material { Color = Color.White, SpecularMultiplier = 0 }),
 
                 new Box(new Vector3(1f, 2.5f, 9), new Vector2(4 * MathF.PI / 3, MathF.PI / 6).ToNormalDirection(), Vector3.One * 1.5f, mirror),
-                new Box(new Vector3(0.3f, 0.3f, 5), new Vector2(4 * MathF.PI / 3, MathF.PI / 3).ToNormalDirection(), Vector3.One * 0.75f,
-                    new Material() { DiffuseMultiplier = 0, Solid = false, Transparency = 1, IndexOfRefraction = 1.1f }),
+                new Box(new Vector3(0.3f, 0.3f, 5), new Vector2(4 * MathF.PI / 3, MathF.PI / 3).ToNormalDirection(), Vector3.One * 0.75f, water),
                 new Box(new Vector3(1.5f, -6f, 9f), new Vector2(MathF.PI / 5, -0.1f).ToNormalDirection(), new Vector3(6, 10, 6),
                     new Material() { DiffuseMultiplier = 0.2f, Solid = false, Transparency = 1, IndexOfRefraction = 1.03f }),
+
+                // {X:-0.6000118 Y:-0.3826835 Z:0.7025235}
+                //new Sphere(new Vector3(-2.8f, 1.5f, 4), 1f, new Material { SpecularMultiplier = 0.5f, SpecularExponent = 1, Transparency = 1,
+                //    Affector = (ref IntersectionData col) => {
+                //        //if (r.NextDouble() < 0.5f)
+                //        col.hit -= new Vector3(-2.8f, 1.5f, 4);
+                //        col.hit *= 10;
+                //        col.hit += Vector3.Up * 2.0f + Vector3.Left * 2.5f + Vector3.Forward * 8;
+                //        col.incidentDirection = Vector3.Lerp(col.incidentDirection, -Vector3.Forward, 0.8f).ToNormal();
+                //    } }),
                 //new Plane(new XNAPlane(Vector3.Up, 2f), mirror),
             };
             lightSources = new LightSource[] {
@@ -111,6 +129,8 @@ namespace RaycastTest
             base.Update(gameTime);
         }
 
+
+        //int imgNumber = 0;
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(BACKGROUND_COLOR);
@@ -118,6 +138,13 @@ namespace RaycastTest
             if (!SINGLE_RENDER)
             {
                 RenderImage();
+                //canvas.SetData(canvasPixels);
+                //using (var fs = File.OpenWrite($"frame_{imgNumber.ToString("D4")}.png"))
+                //    canvas.SaveAsPng(fs, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height);
+                //if (++imgNumber == 200)
+                //{
+                //    Exit();
+                //}
             }
 
             lock (canvasPixels)
@@ -175,7 +202,7 @@ namespace RaycastTest
             if (slowMaxLuma == 0)
                 slowMaxLuma = maxLuma;
             else
-                slowMaxLuma = MathHelper.Lerp(slowMaxLuma, maxLuma, 0.1f);
+                slowMaxLuma = MathHelper.Lerp(slowMaxLuma, maxLuma, 0.01f);
 
             // Adjust everything to the max luma value. A bunch of magic numbers here.
             // I don't actually know if this is how you're supposed to scale down lumosity, but it looks fine enough.
@@ -216,6 +243,7 @@ namespace RaycastTest
             Vector3 refractedColor = Vector3.Zero;
 
             IntersectionData collision = closestCollision.Value;
+            collision.collided.Material.Affector(ref collision);
             Vector3 hitNormal = collision.normalDirection;
             IRaycastObject hitObject = collision.collided;
             Material mat = hitObject.Material;

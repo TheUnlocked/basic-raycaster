@@ -25,7 +25,8 @@ namespace RaycastTest
         }
         public float DistanceSquared { get => Distance * Distance; }
         private Vector3 _reflectiveDirection;
-        public Vector3 ReflectiveDirection { get
+        public Vector3 ReflectiveDirection {
+            get
             {
                 if (_reflectiveDirection == Vector3.Zero)
                 {
